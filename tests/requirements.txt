@@ -9,3 +9,6 @@ pyyaml==6.0.1
 asyncpg==0.29.0
 pydantic-settings==2.2.1
 structlog==24.1.0
+docker==7.1.0
+redis==5.0.4
+prometheus-client==0.20.0
