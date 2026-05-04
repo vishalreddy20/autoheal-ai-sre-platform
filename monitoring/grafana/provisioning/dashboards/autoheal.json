@@ -1,0 +1,222 @@
+{
+  "annotations": { "list": [] },
+  "description": "AutoHeal AI — Service monitoring dashboard",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "reqps" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
+      "targets": [
+        {
+          "expr": "rate(requests_total{service=\"api-gateway\"}[1m])",
+          "legendFormat": "api-gateway",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(requests_total{service=\"user-service\"}[1m])",
+          "legendFormat": "user-service",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(requests_total{service=\"task-service\"}[1m])",
+          "legendFormat": "task-service",
+          "refId": "C"
+        }
+      ],
+      "title": "Request Rate per Service (req/s)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "percentunit", "max": 1 },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "targets": [
+        {
+          "expr": "rate(requests_total{service=\"api-gateway\",status_code=~\"5..\"}[1m]) / rate(requests_total{service=\"api-gateway\"}[1m])",
+          "legendFormat": "api-gateway error rate",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(requests_total{service=\"user-service\",status_code=~\"5..\"}[1m]) / rate(requests_total{service=\"user-service\"}[1m])",
+          "legendFormat": "user-service error rate",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(requests_total{service=\"task-service\",status_code=~\"5..\"}[1m]) / rate(requests_total{service=\"task-service\"}[1m])",
+          "legendFormat": "task-service error rate",
+          "refId": "C"
+        }
+      ],
+      "title": "Error Rate % per Service",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "s" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, rate(request_latency_seconds_bucket{service=\"api-gateway\"}[1m]))",
+          "legendFormat": "api-gateway P99",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(request_latency_seconds_bucket{service=\"user-service\"}[1m]))",
+          "legendFormat": "user-service P99",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(request_latency_seconds_bucket{service=\"task-service\"}[1m]))",
+          "legendFormat": "task-service P99",
+          "refId": "C"
+        }
+      ],
+      "title": "P99 Latency per Service",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "red", "value": null },
+            { "color": "green", "value": 1 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "id": 4,
+      "options": { "reduceOptions": { "calcs": ["last"] }, "orientation": "auto", "textMode": "auto", "colorMode": "background" },
+      "targets": [
+        {
+          "expr": "up{job=\"api-gateway\"}",
+          "legendFormat": "api-gateway",
+          "refId": "A"
+        },
+        {
+          "expr": "up{job=\"user-service\"}",
+          "legendFormat": "user-service",
+          "refId": "B"
+        },
+        {
+          "expr": "up{job=\"task-service\"}",
+          "legendFormat": "task-service",
+          "refId": "C"
+        }
+      ],
+      "title": "Service UP/DOWN Status",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "id": 5,
+      "targets": [
+        {
+          "expr": "db_pool_size{service=\"user-service\"}",
+          "legendFormat": "user-service pool size",
+          "refId": "A"
+        },
+        {
+          "expr": "db_pool_available{service=\"user-service\"}",
+          "legendFormat": "user-service available",
+          "refId": "B"
+        },
+        {
+          "expr": "db_pool_size{service=\"task-service\"}",
+          "legendFormat": "task-service pool size",
+          "refId": "C"
+        },
+        {
+          "expr": "db_pool_available{service=\"task-service\"}",
+          "legendFormat": "task-service available",
+          "refId": "D"
+        }
+      ],
+      "title": "DB Pool Utilization",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "unit": "short",
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 3 },
+            { "color": "red", "value": 5 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 16 },
+      "id": 6,
+      "options": { "reduceOptions": { "calcs": ["last"] }, "orientation": "auto" },
+      "targets": [
+        {
+          "expr": "autoheal_active_incidents",
+          "legendFormat": "Active Incidents",
+          "refId": "A"
+        }
+      ],
+      "title": "Active Incidents",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "unit": "percent",
+          "min": 0, "max": 100,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "red", "value": null },
+            { "color": "yellow", "value": 95 },
+            { "color": "green", "value": 99 }
+          ]}
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 16 },
+      "id": 7,
+      "options": { "reduceOptions": { "calcs": ["last"] }, "orientation": "auto", "showThresholdLabels": true, "showThresholdMarkers": true },
+      "targets": [
+        {
+          "expr": "(1 - (rate(requests_total{status_code=~\"5..\"}[5m]) / rate(requests_total[5m]))) * 100",
+          "legendFormat": "SLO Compliance %",
+          "refId": "A"
+        }
+      ],
+      "title": "SLO Compliance Gauge",
+      "type": "gauge"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "tags": ["autoheal", "sre"],
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "title": "AutoHeal AI — Overview",
+  "uid": "autoheal-overview",
+  "version": 1
+}

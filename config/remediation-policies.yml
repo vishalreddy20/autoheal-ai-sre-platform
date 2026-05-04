@@ -1,0 +1,45 @@
+policies:
+  - name: restart-on-high-error-rate
+    match:
+      condition: high_error_rate
+    action: RESTART_SERVICE
+    cooldown_minutes: 5
+    max_attempts: 2
+    escalation: log_incident
+    dry_run: false
+
+  - name: throttle-on-high-latency
+    match:
+      condition: high_latency
+    action: THROTTLE_TRAFFIC
+    cooldown_minutes: 3
+    max_attempts: 3
+    escalation: log_incident
+    dry_run: false
+
+  - name: failover-on-db-failure
+    match:
+      condition: db_connectivity
+    action: DB_FAILOVER
+    cooldown_minutes: 10
+    max_attempts: 1
+    escalation: require_manual_approval
+    dry_run: false
+
+  - name: restart-on-health-fail
+    match:
+      condition: health_check_fail
+    action: RESTART_SERVICE
+    cooldown_minutes: 5
+    max_attempts: 3
+    escalation: log_incident
+    dry_run: false
+
+  - name: log-slo-violations
+    match:
+      condition: slo_violation
+    action: LOG_INCIDENT
+    cooldown_minutes: 15
+    max_attempts: 99
+    escalation: log_incident
+    dry_run: false

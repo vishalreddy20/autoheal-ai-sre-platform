@@ -1,0 +1,89 @@
+# Development overrides: hot reload via volume mounts
+services:
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - internal
+
+  api-gateway:
+    volumes:
+      - ./services/api-gateway:/app:rw
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    environment:
+      - LOG_LEVEL=debug
+
+  auth-service:
+    volumes:
+      - ./services/auth-service:/app:rw
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8004", "--reload"]
+    environment:
+      - LOG_LEVEL=debug
+      - SUPABASE_DB_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  user-service:
+    volumes:
+      - ./services/user-service:/app:rw
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
+    environment:
+      - LOG_LEVEL=debug
+      - SUPABASE_DB_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/postgres
+      - SUPABASE_DB_URL_REPLICA=postgresql+asyncpg://postgres:postgres@postgres:5432/postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  task-service:
+    volumes:
+      - ./services/task-service:/app:rw
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
+    environment:
+      - LOG_LEVEL=debug
+      - SUPABASE_DB_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/postgres
+      - SUPABASE_DB_URL_REPLICA=postgresql+asyncpg://postgres:postgres@postgres:5432/postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  autoheal-engine:
+    volumes:
+      - ./services/autoheal-engine:/app:rw
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: ["python", "-u", "main.py"]
+    environment:
+      - LOG_LEVEL=debug
+      - SUPABASE_DB_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/postgres
+      - SUPABASE_DB_URL_REPLICA=postgresql+asyncpg://postgres:postgres@postgres:5432/postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    volumes:
+      - ./frontend/src:/app/src:rw
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "80"]
+
+volumes:
+  postgres_data:

@@ -1,0 +1,111 @@
+name: CI — AutoHeal AI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install linting tools
+        run: pip install ruff==0.4.4
+
+      - name: Lint services
+        run: |
+          ruff check services/auth-service/ \
+                      services/api-gateway/ \
+                      services/autoheal-engine/ \
+                      services/user-service/ \
+                      services/task-service/ \
+                      tests/
+
+  test:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install test dependencies
+        run: pip install -r tests/requirements.txt
+
+      - name: Run tests with coverage
+        env:
+          SUPABASE_DB_URL: "postgresql://test:test@localhost/test"
+          AUTH_JWT_SECRET: "test-jwt-secret-32chars-minimum!!"
+        run: |
+          pytest tests/unit tests/integration \
+            --cov=services \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-fail-under=80 \
+            -v
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+  build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build auth-service
+        run: docker build -t autoheal-auth-service:ci ./services/auth-service
+
+      - name: Build api-gateway
+        run: docker build -t autoheal-api-gateway:ci ./services/api-gateway
+
+      - name: Build autoheal-engine
+        run: docker build -t autoheal-engine:ci ./services/autoheal-engine
+
+      - name: Build user-service
+        run: docker build -t autoheal-user-service:ci ./services/user-service
+
+      - name: Build task-service
+        run: docker build -t autoheal-task-service:ci ./services/task-service
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Audit auth-service
+        run: pip-audit -r services/auth-service/requirements.txt || true
+
+      - name: Audit api-gateway
+        run: pip-audit -r services/api-gateway/requirements.txt || true
+
+      - name: Audit autoheal-engine
+        run: pip-audit -r services/autoheal-engine/requirements.txt || true

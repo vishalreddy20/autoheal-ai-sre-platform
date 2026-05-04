@@ -1,0 +1,288 @@
+networks:
+  internal:
+    driver: bridge
+  external:
+    driver: bridge
+
+services:
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    expose:
+      - "8004"
+    environment:
+      - SUPABASE_DB_URL=${SUPABASE_DB_URL}
+      - AUTH_JWT_SECRET=${AUTH_JWT_SECRET:-supersecretjwtkey-change-in-production}
+      - REDIS_URL=redis://redis:6379
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - JAEGER_ENDPOINT=http://jaeger:4317
+    networks:
+      - internal
+    depends_on:
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - USER_SERVICE_URL=http://user-service:8001
+      - TASK_SERVICE_URL=http://task-service:8002
+      - AUTOHEAL_ENGINE_URL=http://autoheal-engine:8003
+      - AUTH_SERVICE_URL=http://auth-service:8004
+      - API_GATEWAY_URL=http://api-gateway:8000
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - ALLOWED_ORIGINS=${CORS_ORIGINS}
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - JAEGER_ENDPOINT=http://jaeger:4317
+      - REDIS_URL=redis://redis:6379
+      - AUTH_JWT_SECRET=${AUTH_JWT_SECRET:-supersecretjwtkey-change-in-production}
+      - ALERTMANAGER_WEBHOOK_SECRET=${ALERTMANAGER_WEBHOOK_SECRET:-}
+    networks:
+      - internal
+      - external
+    depends_on:
+      user-service:
+        condition: service_healthy
+      task-service:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    expose:
+      - "8001"
+    environment:
+      - SUPABASE_DB_URL=${SUPABASE_DB_URL}
+      - SUPABASE_DB_URL_REPLICA=${SUPABASE_DB_URL_REPLICA}
+      - JAEGER_ENDPOINT=http://jaeger:4317
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - REDIS_URL=redis://redis:6379
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  task-service:
+    build:
+      context: ./services/task-service
+      dockerfile: Dockerfile
+    expose:
+      - "8002"
+    environment:
+      - SUPABASE_DB_URL=${SUPABASE_DB_URL}
+      - SUPABASE_DB_URL_REPLICA=${SUPABASE_DB_URL_REPLICA}
+      - JAEGER_ENDPOINT=http://jaeger:4317
+      - CORS_ORIGINS=${CORS_ORIGINS}
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  autoheal-engine:
+    build:
+      context: ./services/autoheal-engine
+      dockerfile: Dockerfile
+    expose:
+      - "8003"
+    environment:
+      - SUPABASE_DB_URL=${SUPABASE_DB_URL}
+      - SUPABASE_DB_URL_REPLICA=${SUPABASE_DB_URL_REPLICA}
+      - PROMETHEUS_URL=http://prometheus:9090
+      - USER_SERVICE_URL=http://user-service:8001
+      - TASK_SERVICE_URL=http://task-service:8002
+      - API_GATEWAY_URL=http://api-gateway:8000
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - JAEGER_ENDPOINT=http://jaeger:4317
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - REDIS_URL=redis://redis:6379
+      - HEALING_DRY_RUN=${HEALING_DRY_RUN:-false}
+      - ALERTMANAGER_WEBHOOK_SECRET=${ALERTMANAGER_WEBHOOK_SECRET:-}
+      - POLICIES_PATH=/app/config/remediation-policies.yml
+    user: root
+    volumes:
+      - ./config:/app/config:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - internal
+    depends_on:
+      - prometheus
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-lifecycle'
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+    networks:
+      - internal
+    depends_on:
+      - autoheal-engine
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    expose:
+      - "6379"
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/grafana.ini:/etc/grafana/grafana.ini:ro
+      - grafana_data:/var/lib/grafana
+    networks:
+      - internal
+      - external
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.56
+    ports:
+      - "16686:16686"
+      - "14317:4317"
+      - "14318:4318"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - internal
+      - external
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:16686/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  locust:
+    image: locustio/locust:2.24.0
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./load-testing/locustfile.py:/mnt/locust/locustfile.py:ro
+    command: -f /mnt/locust/locustfile.py --web-host=0.0.0.0 --autostart --users 10 --spawn-rate 2
+    environment:
+      - LOCUST_HOST=http://api-gateway:8000
+    networks:
+      - internal
+      - external
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8000
+        VITE_AUTOHEAL_ENGINE_URL: http://localhost:8003
+        VITE_SSE_URL: http://localhost:8000/stream/events
+    ports:
+      - "5174:80"
+    networks:
+      - external
+    depends_on:
+      - api-gateway
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://0.0.0.0:80/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  redis_data:

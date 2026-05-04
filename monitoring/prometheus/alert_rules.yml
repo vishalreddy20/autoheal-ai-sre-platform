@@ -1,0 +1,110 @@
+groups:
+  - name: autoheal_service_alerts
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.job }} has been down for more than 30 seconds"
+
+      - alert: HighErrorRate
+        expr: rate(requests_total{status_code=~"5..", service!="api-gateway"}[5m]) > 0.1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on {{ $labels.service }}"
+          description: "Error rate is {{ $value | humanizePercentage }} requests/sec"
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(request_latency_seconds_bucket{service!="api-gateway"}[5m])) > 1.0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency on {{ $labels.service }}"
+          description: "P95 latency is {{ $value }}s"
+
+      - alert: HighMemoryUsage
+        expr: (process_resident_memory_bytes / 1024 / 1024) > 512
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.job }}"
+          description: "Memory usage is {{ $value | humanize }}MB"
+
+  - name: autoheal_slo_burn_rates
+    rules:
+      # Page immediately: fast burn (14.4x budget consumed in 5m window)
+      - alert: SLOBurnRateCritical
+        expr: |
+          (
+            rate(requests_total{status_code=~"5..", service!="api-gateway"}[5m])
+            / rate(requests_total{service!="api-gateway"}[5m])
+          ) > (14.4 * 0.001)
+          and
+          (
+            rate(requests_total{status_code=~"5..", service!="api-gateway"}[1h])
+            / rate(requests_total{service!="api-gateway"}[1h])
+          ) > (14.4 * 0.001)
+        for: 2m
+        labels:
+          severity: critical
+          slo_window: "5m_1h"
+        annotations:
+          summary: "CRITICAL SLO burn rate — {{ $labels.service }} consuming error budget at 14.4x"
+          description: "Service {{ $labels.service }} will exhaust its error budget in ~1 hour if this continues."
+
+      # Page urgently: medium burn (6x budget in 6h window)
+      - alert: SLOBurnRateHigh
+        expr: |
+          (
+            rate(requests_total{status_code=~"5..", service!="api-gateway"}[30m])
+            / rate(requests_total{service!="api-gateway"}[30m])
+          ) > (6 * 0.001)
+          and
+          (
+            rate(requests_total{status_code=~"5..", service!="api-gateway"}[6h])
+            / rate(requests_total{service!="api-gateway"}[6h])
+          ) > (6 * 0.001)
+        for: 15m
+        labels:
+          severity: high
+          slo_window: "30m_6h"
+        annotations:
+          summary: "HIGH SLO burn rate — {{ $labels.service }} consuming error budget at 6x"
+          description: "Service {{ $labels.service }} will exhaust its error budget in ~2.5 hours if this continues."
+
+      # Ticket: slow burn (3x budget in 6h window)
+      - alert: SLOBurnRateWarning
+        expr: |
+          (
+            rate(requests_total{status_code=~"5..", service!="api-gateway"}[6h])
+            / rate(requests_total{service!="api-gateway"}[6h])
+          ) > (3 * 0.001)
+        for: 60m
+        labels:
+          severity: warning
+          slo_window: "6h"
+        annotations:
+          summary: "WARNING SLO burn rate — {{ $labels.service }} consuming error budget at 3x"
+          description: "Service {{ $labels.service }} error budget burn rate is elevated. Monitor closely."
+
+      - alert: ErrorBudgetLow
+        expr: |
+          (
+            1 - (
+              rate(requests_total{status_code=~"5..", service!="api-gateway"}[30d])
+              / rate(requests_total{service!="api-gateway"}[30d])
+            )
+          ) < 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Error budget below 10% for {{ $labels.service }}"
+          description: "Service {{ $labels.service }} has consumed over 90% of its monthly error budget."
