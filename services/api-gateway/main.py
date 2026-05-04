@@ -12,6 +12,8 @@ import time
 from datetime import datetime, timezone
 from typing import AsyncGenerator
 
+import httpx as _httpx_module
+
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
@@ -197,9 +199,6 @@ async def throttle_rate_limit_middleware(request: Request, call_next):
 
 
 # ── Auth proxy routes ──────────────────────────────────────────────────────────
-import httpx as _httpx_module
-
-
 @app.api_route("/auth/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 async def proxy_auth(request: Request, path: str):
     """Proxy all /auth/* requests to the auth-service."""
