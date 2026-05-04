@@ -149,8 +149,10 @@ async def simulate_service_down(request: Request) -> JSONResponse:
                 _service_simulated_down[service] = True
                 
                 target_url = None
-                if service == "user-service": target_url = settings.user_service_url
-                elif service == "task-service": target_url = settings.task_service_url
+                if service == "user-service": 
+                    target_url = settings.user_service_url
+                elif service == "task-service": 
+                    target_url = settings.task_service_url
                 
                 if target_url:
                     try:
@@ -215,8 +217,10 @@ async def simulate_service_restore(request: Request) -> JSONResponse:
                 _service_simulated_down.pop(service, None)
 
                 target_url = None
-                if service == "user-service": target_url = settings.user_service_url
-                elif service == "task-service": target_url = settings.task_service_url
+                if service == "user-service": 
+                    target_url = settings.user_service_url
+                elif service == "task-service": 
+                    target_url = settings.task_service_url
 
                 if target_url:
                     try:

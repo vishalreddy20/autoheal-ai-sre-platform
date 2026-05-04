@@ -3,8 +3,6 @@ User CRUD routes — all queries use parameterized statements via asyncpg.
 """
 import asyncio
 import asyncpg
-from datetime import datetime, timezone
-from typing import Optional
 from uuid import UUID
 
 import structlog

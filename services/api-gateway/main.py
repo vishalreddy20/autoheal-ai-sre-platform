@@ -25,7 +25,6 @@ from prometheus_client import (
     generate_latest,
     CONTENT_TYPE_LATEST,
 )
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
@@ -33,7 +32,6 @@ from config import get_settings
 from middleware.request_id import RequestIDMiddleware
 from middleware.rate_limiter import limiter, rate_limit_exceeded_handler
 from middleware.tracing import setup_tracing
-from middleware.jwt_auth import JWTMiddleware
 from routes.proxy import router as proxy_router, close_client
 from routes.simulate import router as simulate_router
 

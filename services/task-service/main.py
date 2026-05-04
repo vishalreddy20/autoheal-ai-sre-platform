@@ -1,7 +1,6 @@
 """
 Task Service — main FastAPI application.
 """
-import asyncio
 import signal
 import time
 from datetime import datetime, timezone

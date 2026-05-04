@@ -2,19 +2,18 @@
 AutoHeal Engine — main entry point with all new endpoints.
 """
 import asyncio
-import os
 import signal
 import sys
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 from urllib.parse import ParseResult, urlparse, urlunparse
 
 import asyncpg
 import httpx
 import structlog
-from fastapi import FastAPI, Request, Header
+from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,7 +23,7 @@ from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTEN
 from config import get_settings
 import incident_store
 from detector import run_detection, get_metrics_snapshot, MONITORED_SERVICES, DetectionResult
-from healer import apply_rate_limit, execute_db_failover, heal, set_broadcast_fn, set_policy_engine, log_audit, HEALING_DRY_RUN, _decrement_blast_radius
+from healer import apply_rate_limit, execute_db_failover, heal, set_broadcast_fn, set_policy_engine, HEALING_DRY_RUN, _decrement_blast_radius
 from policies import PolicyEngine
 from correlator import AlertCorrelator
 from slo import SLOMonitor
@@ -264,7 +263,7 @@ async def polling_loop() -> None:
                         if compliance is not None and compliance < 95.0:
                             fingerprint = f"system:slo_breach_{slo_name}"
                             if await _try_claim_incident(fingerprint):
-                                inc_id = await incident_store.create_incident(
+                                _ = await incident_store.create_incident(
                                     service="system", issue_type="slo_violation",
                                     severity="medium", details={"slo": slo_name, "compliance": compliance},
                                     action_taken="LOG_INCIDENT",

@@ -8,7 +8,7 @@ import json
 import os
 import time
 from datetime import datetime, timezone
-from typing import Callable, Awaitable, Dict, Optional, Any
+from typing import Callable, Awaitable, Optional
 
 import asyncpg
 import docker

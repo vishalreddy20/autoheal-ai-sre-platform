@@ -3,7 +3,7 @@ Unit tests for autoheal-engine main.py.
 """
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 import sys
 import os
 
@@ -29,7 +29,7 @@ def test_metrics_endpoint():
 @patch("main.heal")
 async def test_detect_endpoint(mock_heal, mock_run_detection):
     # This just hits the basic validation/response
-    response = client.post("/detect")
+    _ = client.post("/detect")
     # Actually wait, /detect is not an endpoint. Let's see what endpoints are in main.py.
     # The endpoints might be /alerts/webhook, etc.
     pass

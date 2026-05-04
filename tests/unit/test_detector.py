@@ -2,7 +2,7 @@
 Unit tests for detector.py.
 """
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 import httpx
 import sys
 import os
@@ -15,8 +15,6 @@ from detector import (
     _get_health_fail_count,
     _set_health_fail_count,
     set_redis_client,
-    DetectionResult,
-    MONITORED_SERVICES,
 )
 
 

@@ -2,7 +2,6 @@
 User Service — main FastAPI application.
 Handles /users CRUD routes, health/ready probes, Prometheus metrics, SIGTERM.
 """
-import asyncio
 import signal
 import time
 from datetime import datetime, timezone

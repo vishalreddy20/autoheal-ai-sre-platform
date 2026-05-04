@@ -3,7 +3,6 @@ Auth Service — JWT authentication with role-based access control.
 Endpoints: POST /auth/login, POST /auth/register, GET /auth/me
 """
 import asyncio
-import json
 import signal
 import time
 import uuid
@@ -20,7 +19,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 from config import get_settings
 

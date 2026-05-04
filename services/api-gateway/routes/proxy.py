@@ -5,7 +5,7 @@ Implements circuit breaker pattern (>10 failures in 60s → open circuit for 60s
 import asyncio
 import time
 from collections import defaultdict
-from typing import Dict, Any
+from typing import Dict
 
 import httpx
 import structlog

@@ -1,7 +1,6 @@
 """
 Unit tests for AlertCorrelator.
 """
-import asyncio
 import pytest
 import sys
 import os

@@ -2,10 +2,9 @@
 Detector — evaluates monitoring rules against live Prometheus data and health checks.
 Returns DetectionResult objects consumed by the healer.
 """
-import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 import httpx
 import structlog

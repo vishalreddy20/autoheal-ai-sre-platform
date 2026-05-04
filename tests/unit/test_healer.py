@@ -3,7 +3,6 @@ Unit tests for healer.py.
 """
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
-import httpx
 import sys
 import os
 
@@ -15,8 +14,6 @@ from healer import (
     execute_db_failover,
     set_policy_engine,
     _check_blast_radius,
-    _get_cb_state,
-    set_broadcast_fn,
 )
 from detector import DetectionResult
 
